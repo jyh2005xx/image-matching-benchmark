@@ -40,3 +40,31 @@ def _preprocess(matches, kps1, kps2, min_num_matches):
         return False, None, None, None
 
     return True, matches, kp1, kp2
+
+def _preprocess_kp_depth(matches, kps1, kps2, dep1, dep2, 
+                      dep_var1, dep_var2, 
+                      min_num_matches):
+    '''Common preprocessing of keypoints/matches.'''
+
+    # Give up if we have no matches
+    # Can happen with empty keypoint lists
+    if matches.size == 0:
+        return False, None, None, None, None, None, None, None
+
+    kp1 = kps1[:, :2]
+    kp2 = kps2[:, :2]
+
+    kp1 = np.squeeze(kp1[matches[0]])
+    kp2 = np.squeeze(kp2[matches[1]])
+    dep1 = np.squeeze(dep1[matches[0]])
+    dep2 = np.squeeze(dep2[matches[1]])
+    dep_var1 = np.squeeze(dep_var1[matches[0]])
+    dep_var2 = np.squeeze(dep_var2[matches[1]])
+
+    if kp1.ndim == 1 or kp2.ndim == 1:
+        return False, None, None, None, None, None, None, None
+
+    if matches.shape[1] < min_num_matches:
+        return False, None, None, None, None, None, None, None
+
+    return True, matches, kp1, kp2, dep1, dep2, dep_var1, dep_var2

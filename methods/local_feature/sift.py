@@ -17,6 +17,7 @@ import numpy as np
 
 from utils.feature_helper import convert_opencv_kp_desc, l_clahe
 from utils.load_helper import load_image
+from methods.local_feature.depth import extract_depth, bilinear_interpolation, get_lcoal_varience
 
 
 def run(img_path, cfg):
@@ -62,61 +63,87 @@ def run(img_path, cfg):
         use_clahe_desc = False
         use_upright = False
         use_upright_minus_minus = False
+        use_depth = False
     elif desc_name == 'rootsift':
         use_rootsift = True
         use_clahe_desc = False
         use_upright = False
         use_upright_minus_minus = False
+        use_depth = False
     elif desc_name == 'sift-clahe':
         use_rootsift = False
         use_clahe_desc = True
         use_upright = False
         use_upright_minus_minus = False
+        use_depth = False
     elif desc_name == 'rootsift-clahe':
         use_rootsift = True
         use_clahe_desc = True
         use_upright = False
         use_upright_minus_minus = False
+        use_depth = False
     elif desc_name == 'sift-upright':
         use_rootsift = False
         use_clahe_desc = False
         use_upright = True
         use_upright_minus_minus = False
+        use_depth = False
     elif desc_name == 'sift-upright--':
         use_rootsift = False
         use_clahe_desc = False
         use_upright = True
         use_upright_minus_minus = True
+        use_depth = False
     elif desc_name == 'rootsift-upright':
         use_rootsift = True
         use_clahe_desc = False
         use_upright = True
         use_upright_minus_minus = False
+        use_depth = False
     elif desc_name == 'rootsift-upright--':
         use_rootsift = True
         use_clahe_desc = False
         use_upright = True
         use_upright_minus_minus = True
+        use_depth = False
     elif desc_name == 'sift-clahe-upright':
         use_rootsift = False
         use_clahe_desc = True
         use_upright = True
         use_upright_minus_minus = False
+        use_depth = False
     elif desc_name == 'sift-clahe-upright--':
         use_rootsift = False
         use_clahe_desc = True
         use_upright = True
         use_upright_minus_minus = True
+        use_depth = False
     elif desc_name == 'rootsift-clahe-upright':
         use_rootsift = True
         use_clahe_desc = True
         use_upright = True
         use_upright_minus_minus = False
+        use_depth = False
     elif desc_name == 'rootsift-clahe-upright--':
         use_rootsift = True
         use_clahe_desc = True
         use_upright = True
         use_upright_minus_minus = True
+        use_depth = False
+    elif desc_name.startswith('sift-depth'):
+        use_rootsift = False
+        use_clahe_desc = False
+        use_upright = False
+        use_upright_minus_minus = False
+        use_depth = True
+        depth_model = desc_name.split('-')[-1]
+    elif desc_name.startswith('rootsift-depth'):
+        use_rootsift = True
+        use_clahe_desc = False
+        use_upright = False
+        use_upright_minus_minus = False
+        use_depth = True
+        depth_model = desc_name.split('-')[-1]
     else:
         raise ValueError('Unknown descriptor')
 
@@ -132,11 +159,11 @@ def run(img_path, cfg):
     if use_upright_minus_minus:
         NUM_FIRST_DETECT = num_kp
     if use_lower_det_th:
-        feature = cv2.xfeatures2d.SIFT_create(NUM_FIRST_DETECT, 
+        feature = cv2.SIFT_create(NUM_FIRST_DETECT, 
                                               contrastThreshold=-10000,
                                               edgeThreshold=-10000)
     else:
-        feature = cv2.xfeatures2d.SIFT_create(NUM_FIRST_DETECT)
+        feature = cv2.SIFT_create(NUM_FIRST_DETECT)
 
     # Load image, for detection
     if use_clahe_det:
@@ -188,10 +215,22 @@ def run(img_path, cfg):
     # Convert opencv keypoints into our format
     kp, desc = convert_opencv_kp_desc(kp, desc, num_kp)
 
+    # Extract depth
+    if use_depth:
+        # get depth map
+        depth = extract_depth(img_path, depth_model, cfg)
+        # get kp_xy
+        kp_xy = np.array(kp)[:,:2]
+        # get depth for each kp
+        d = bilinear_interpolation(kp_xy,depth)
+        # get cor for each kp
+        cor = get_lcoal_varience(kp_xy,depth)
     result = {}
     result['kp'] = [p[0:2] for p in kp]
     result['scale'] = [p[2] for p in kp]
     result['angle'] = [p[3] for p in kp]
     result['score'] = [p[4] for p in kp]
     result['descs'] = desc
+    result['dep'] = [_d for _d in d]
+    result['dep_var'] = [_cor for _cor in cor]
     return result

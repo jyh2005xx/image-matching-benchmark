@@ -26,7 +26,8 @@ from methods import geom_models
 from utils.load_helper import load_calib
 from utils.io_helper import load_h5, save_h5
 from utils.path_helper import (
-    get_data_path, get_desc_file, get_kp_file, get_fullpath_list,
+    get_data_path, get_desc_file, get_kp_file, get_dep_file, 
+    get_dep_var_file, get_fullpath_list,
     get_scale_file, get_angle_file, get_affine_file, get_geom_inl_file,
     get_item_name_list, get_geom_file, get_match_file,
     get_filter_match_file_for_computing_model, get_geom_path,
@@ -49,7 +50,11 @@ def compute_model(cfg,
                   A1=None,
                   A2=None,
                   descs1=None,
-                  descs2=None):
+                  descs2=None,
+                  dep1 = None,
+                  dep2 = None,
+                  dep_var1 = None,
+                  dep_var2 = None):
     '''Computes matches given descriptors.
 
     Parameters
@@ -71,7 +76,6 @@ def compute_model(cfg,
     # For now, we consider only OpenCV
     cur_key = 'config_{}_{}'.format(cfg.dataset, cfg.task)
     geom = cfg.method_dict[cur_key]['geom']
-
     t_start = time()
     if geom['method'].startswith('cv2-'):
         model, inliers = geom_models.geom_cv2.estimate_essential(
@@ -87,6 +91,11 @@ def compute_model(cfg,
         model, inliers = geom_models.geom_intel.estimate_essential(
             cfg, matches, kps1, kps2, calib1, calib2, scales1, scales2, ori1,
             ori2, descs1, descs2)
+    elif geom['method']== 'custom-depth-sac':
+        model, inliers = geom_models.geom_custom_depth.estimate_essential(
+            cfg, matches, kps1, kps2, calib1, calib2, scales1, scales2, ori1,
+            ori2, descs1, descs2, dep1, dep2, dep_var1, dep_var2
+        )
     else:
         raise ValueError('Unknown method to estimate E/F')
 
@@ -130,10 +139,26 @@ def main(cfg):
     pairs_per_th = get_pairs_per_threshold(data_dir)
 
     # Get data directory
+    try: 
+        dep_dict = defaultdict(list)
+        dep_dict1 = load_h5(get_dep_file(cfg))
+        for k,v in dep_dict1.items():
+            dep_dict[k] = v
+    except Exception:
+        dep_dict = defaultdict(list)
+    
+    try:
+        dep_var_dict = defaultdict(list)
+        dep_var_dict1 = load_h5(get_dep_var_file(cfg))
+        for k,v in dep_var_dict1.items():
+            dep_var_dict[k] = v
+    except Exception:
+        dep_var_dict = defaultdict(list)
+
     try:
         desc_dict = defaultdict(list)
         desc_dict1 = load_h5(get_desc_file(cfg))
-        for k, v in desc_dict.items():
+        for k, v in desc_dict1.items():
             desc_dict[k] = v
     except Exception:
         desc_dict = defaultdict(list)
@@ -196,7 +221,11 @@ def main(cfg):
             np.asarray(aff_dict[pair.split('-')[0]]),
             np.asarray(aff_dict[pair.split('-')[1]]),
             np.asarray(desc_dict[pair.split('-')[0]]),
-            np.asarray(desc_dict[pair.split('-')[1]]))
+            np.asarray(desc_dict[pair.split('-')[1]]),
+            np.asarray(dep_dict[pair.split('-')[0]]),
+            np.asarray(dep_dict[pair.split('-')[1]]),
+            np.asarray(dep_var_dict[pair.split('-')[0]]),
+            np.asarray(dep_var_dict[pair.split('-')[1]]))
                                             for pair in tqdm(pairs_per_th['0.0']))
     # Make model dictionary
     model_dict = {}
@@ -206,7 +235,6 @@ def main(cfg):
         model_dict[pair] = result[i][0]
         inl_dict[pair] = result[i][1]
         timings_list.append(result[i][2])
-
     # Check model directory
     if not os.path.exists(get_geom_path(cfg)):
         os.makedirs(get_geom_path(cfg))

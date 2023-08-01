@@ -1,0 +1,45 @@
+[
+    {
+        "metadata": {
+            "publish_anonymously": false,
+            "authors": "",
+            "contact_email": "noreply@gmail.com",
+            "method_name": "Example: Upright SIFT (OpenCV)",
+            "method_description": "SIFT with 2048 features, using the built-in matcher (bidirectional filter with the 'both' strategy, optimal inlier and ratio test thresholds) with DEGENSAC, and setting keypoint orientation to a constant value to increase performance.",
+            "link_to_website": "https://opencv.org",
+            "link_to_pdf": "",
+        },
+        "config_common": {
+            "json_label": "rootsift-2k-both-depthsac",
+            "keypoint": "sift-def",
+            "descriptor": "rootsift-depth",
+            "num_keypoints": 2048,
+        },
+        "config_phototourism_stereo": {
+            "use_custom_matches": false,
+            "matcher": {
+                 "method": "nn",
+                 "distance": "L2",
+                 "flann": true,
+                 "num_nn": 1,
+                 "filtering": {
+                     "type": "snn_ratio_pairwise",
+                     "threshold": 0.90,
+                 },
+                 "symmetric": {
+                     "enabled": true,
+                     "reduce": "both",
+                 },
+            },
+            "outlier_filter": {
+                "method": "none",
+            },
+            "geom": {
+                "method": "custom-depth-sac",
+                "threshold": 0.5,
+                "max_iter": 100000,
+                "rep_threshold": 20,
+            },
+        },
+    },
+]

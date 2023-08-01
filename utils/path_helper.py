@@ -106,6 +106,15 @@ def get_kp_file(cfg):
 
     return os.path.join(get_feature_path(cfg), 'keypoints.h5')
 
+def get_dep_file(cfg):
+    '''Returns the path to the depth file'''
+
+    return os.path.join(get_feature_path(cfg),'depth.h5')
+
+def get_dep_var_file(cfg):
+    '''Returns the path to the depth file'''
+
+    return os.path.join(get_feature_path(cfg),'depth_var.h5')
 
 def get_scale_file(cfg):
     '''Returns the path to the scale file.'''
@@ -225,7 +234,6 @@ def get_filter_path(cfg):
     else:
         raise ValueError('Unknown outlier_filter type')
 
-
 def get_match_path(cfg):
     '''Returns where the match results folder is stored.'''
     return os.path.join(get_feature_path(cfg), get_match_name(cfg))
@@ -268,6 +276,24 @@ def get_geom_name(cfg):
             str(geom['threshold']), 'conf',
             str(geom['confidence']), 'maxiter',
             str(geom['max_iter'])
+        ])
+    elif method in ['cv2-topk-f']:
+        label = '_'.join([
+            method, 'th',
+            str(geom['threshold']), 'conf',
+            str(geom['confidence']), 'maxiter',
+            str(geom['max_iter']),'k',
+            str(geom['k'])
+        ])
+    elif method in ['custom-depth-sac']:
+        label = '_'.join([
+            method,
+            'th',
+            str(geom['threshold']),
+            'rep_th',
+            str(geom['rep_threshold']),
+            'max_iter',
+            str(geom['max_iter']),
         ])
     elif method in ['cv2-ransac-e']:
         label = '_'.join([

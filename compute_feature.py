@@ -20,7 +20,8 @@ from utils.io_helper import save_h5
 from utils.path_helper import (get_data_path, get_desc_file, get_feature_path,
                                get_fullpath_list, get_item_name_list,
                                get_kp_file, get_angle_file, get_scale_file,
-                               get_affine_file, get_score_file)
+                               get_affine_file, get_score_file, get_dep_file,
+                               get_dep_var_file)
 import cv2
 
 
@@ -55,8 +56,9 @@ def compute_per_img_file(img_path, cfg):
             u + v for u in ['sift-def', 'sift-lowth'] for v in ['', '-clahe']
     ]:
         if desc in [
-                u + v + w for u in ['sift', 'rootsift']
+                u + v + w + x for u in ['sift', 'rootsift']
                 for v in ['', '-clahe'] for w in ['', '-upright', '-upright--']
+                for x in ['', '-depth']
         ]:
             return lfeat.sift.run(img_path, cfg)
 
@@ -135,6 +137,8 @@ def main(cfg):
     score_dict = {}
     descs_dict = {}
     affine_dict = {}
+    dep_dict = {}
+    dep_var_dict = {}
     for _i in range(len(image_names)):
         assert 'kp' in result[_i], 'Must provide keypoints'
         assert 'descs' in result[_i], 'Must provide descriptors'
@@ -150,6 +154,10 @@ def main(cfg):
             score_dict[image_names[_i]] = result[_i]['score']
         if 'descs' in result[_i]:
             descs_dict[image_names[_i]] = result[_i]['descs']
+        if 'dep' in result[_i]:
+            dep_dict[image_names[_i]] = result[_i]['dep']
+        if 'dep_var' in result[_i]:
+            dep_var_dict[image_names[_i]] = result[_i]['dep_var']
 
     # Finally, save packed keypoints and descriptors
     save_h5(kp_dict, get_kp_file(cfg))
@@ -158,6 +166,8 @@ def main(cfg):
     save_h5(score_dict, get_score_file(cfg))
     save_h5(descs_dict, get_desc_file(cfg))
     save_h5(affine_dict, get_affine_file(cfg))
+    save_h5(dep_dict, get_dep_file(cfg))
+    save_h5(dep_var_dict, get_dep_var_file(cfg))
 
 
 if __name__ == '__main__':

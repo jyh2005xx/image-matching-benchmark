@@ -8,3 +8,6 @@
 [submodule "third_party/DFE"]
 	path = third_party/DFE
 	url = https://github.com/ducha-aiki/DFE
+[submodule "third_party/MiDaS"]
+	path = third_party/MiDaS
+	url = git@github.com:isl-org/MiDaS.git

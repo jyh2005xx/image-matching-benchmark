@@ -318,7 +318,7 @@ def validate_method(method, is_challenge, datasets):
             'method':
             And(
                 str, lambda v: v.lower() in [
-                    'cv2-ransac-f', 'cv2-ransac-e', 'cv2-lmeds-f',
+                    'cv2-ransac-f', 'cv2-ransac-e', 'cv2-lmeds-f','cv2-topk-f'
                     'cv2-lmeds-e', 'cv2-7pt', 'cv2-8pt',
                     'cv2-usacdef-f',
                     'cv2-usacmagsac-f',
@@ -326,7 +326,8 @@ def validate_method(method, is_challenge, datasets):
                     'cv2-usacaccurate-f',
                     'cmp-degensac-f',
                     'cmp-degensac-f-laf', 'cmp-gc-ransac-f', 'cmp-magsac-f',
-                    'cmp-gc-ransac-e', 'skimage-ransac-f', 'intel-dfe-f'
+                    'cmp-gc-ransac-e', 'skimage-ransac-f', 'intel-dfe-f',
+                    'custom-depth-sac'
                 ]),
             Optional('threshold'):
             And(Use(float), lambda v: v > 0),
@@ -334,12 +335,16 @@ def validate_method(method, is_challenge, datasets):
             And(Use(float), lambda v: v > 0),
             Optional('max_iter'):
             And(Use(int), lambda v: v > 0),
+            Optional('rep_threshold'):
+            And(Use(float), lambda v: v > 0),
             Optional('postprocess'):
             And(Use(bool), lambda v: v is not None),
             Optional('error_type'):
             And(Use(str), lambda v: v.lower() in ['sampson', 'symm_epipolar']),
             Optional('degeneracy_check'):
             bool,
+            Optional('k'):
+            And(Use(int), lambda v: v > 0),
         }
     }
     mv_opts = {
@@ -527,14 +532,17 @@ def validate_method(method, is_challenge, datasets):
 
                 # Threshold for RANSAC
                 if geom['method'].lower() in [
-                        'cv2-ransac-f', 'cv2-ransac-e',
-                    'cv2-usacdef-f',
-                    'cv2-usacmagsac-f',
-                    'cv2-usacfast-f',
-                    'cv2-usacaccurate-f',
+                        'cv2-ransac-f', 
+                        'cv2-ransac-e',
+                        'cv2-topk-f', 
+                        'cv2-usacdef-f',
+                        'cv2-usacmagsac-f',
+                        'cv2-usacfast-f',
+                        'cv2-usacaccurate-f',
                         'cmp-degensac-f', 'cmp-gc-ransac-f', 'cmp-gc-ransac-e',
                         'cmp-degensac-f-laf', 'cmp-magsac-f',
-                        'skimage-ransac-f', 'intel-dfe-f'
+                        'skimage-ransac-f', 'intel-dfe-f',
+                        'custom-depth-sac'
                 ]:
                     if 'threshold' not in geom:
                         raise ValueError(
@@ -570,7 +578,7 @@ def validate_method(method, is_challenge, datasets):
 
                 # Confidence for RANSAC/LMEDS
                 if geom['method'].lower() in [
-                        'cv2-ransac-f',
+                        'cv2-ransac-f','cv2-topk-f'
                     'cv2-usacdef-f',
                     'cv2-usacmagsac-f',
                     'cv2-usacfast-f',
@@ -597,7 +605,7 @@ def validate_method(method, is_challenge, datasets):
 
                 # Maximum number of RANSAC iterations
                 if geom['method'].lower() in [
-                        'cv2-ransac-f',
+                        'cv2-ransac-f','cv2-topk-f','custom-depth-sac',
                         'cv2-usacdef-f',
                         'cv2-usacmagsac-f',
                         'cv2-usacfast-f',
@@ -619,6 +627,15 @@ def validate_method(method, is_challenge, datasets):
                             '[{}] Cannot indicate max_iter for this method'.
                             format(dataset1))
 
+                # Reprojection error for depth sac
+                if geom['method'].lower() in [
+                        'custom-depth-sac'
+                ]:
+                    if 'rep_threshold' not in geom:
+                        raise ValueError(
+                            '[{}] Must indicate rep_threshold for this method'.
+                            format(dataset1))
+                    
                 # DFE-specific
                 if geom['method'].lower() in ['intel-dfe-f']:
                     if 'postprocess' not in geom:
