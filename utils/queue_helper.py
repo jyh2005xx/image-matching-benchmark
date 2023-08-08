@@ -69,6 +69,7 @@ def get_cluster_name():
 def write_sh_header(f, cfg):
     '''Writes headers for jobs to be submitted to slurm.'''
     f.write('#!/bin/bash\n')
+    f.write('source sfm_env/bin/activate\n')
 
     hostname = get_cluster_name()
 
@@ -79,12 +80,13 @@ def write_sh_header(f, cfg):
     # Only create scripts with module changes when non-interactive
     if cfg.run_mode == 'batch':
         # Purge all modules -- this prevents race issues
-        f.write('module purge\n')
+        # f.write('module purge\n')
         # Modules to be loaded
         if hostname == 'cedar' or hostname == 'graham':
             # If host is cedar/graham
-            f.write('module load arch/avx2 StdEnv/2016.4\n')
-            f.write('module load nixpkgs/16.09  gcc/5.4.0 colmap/3.5\n')
+            # f.write('module load arch/avx2 StdEnv/2016.4\n')
+            # f.write('module load nixpkgs/16.09  gcc/5.4.0 colmap/3.5\n')
+            return
         elif hostname == 'beluga':
             # If host is beluga
             f.write('module load arch/avx2 StdEnv/2016.4\n')
