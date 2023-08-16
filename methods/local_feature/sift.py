@@ -233,6 +233,7 @@ def run(img_path, cfg):
     result['angle'] = [p[3] for p in kp]
     result['score'] = [p[4] for p in kp]
     result['descs'] = desc
-    result['dep'] = [_d for _d in d]
-    result['dep_var'] = [_valid_mask for _valid_mask in valid_mask]
+    if use_depth:
+        result['dep'] = [_d for _d in d]
+        result['dep_var'] = [_valid_mask for _valid_mask in valid_mask]
     return result
