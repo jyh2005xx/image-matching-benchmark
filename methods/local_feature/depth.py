@@ -27,7 +27,7 @@ def extract_depth(img_path, depth_model, cfg):
     depth_file = os.path.join(tmp_folder,os.path.basename(img_path)[:-4]+'-{}.pfm'.format(depth_model))
     dis = read_pfm(depth_file)[0]
     depth = 1/(dis+1e-8)
-    depth[depth<=0] = 0
+    depth[dis<=0.1] = -1
     return depth
 
 def bilinear_interpolation(query_points,value_map):
@@ -87,6 +87,7 @@ def get_lcoal_varience(query_points,value_map,kernel_size = 4):
         print(data_centered.shape)
         print(mean.shape)
         conf = np.sqrt(np.mean(data_centered**2,axis=-1))/mean
+        conf[mean==0]=0
         return conf
     return get_cor(query_values)
 

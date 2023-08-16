@@ -35,152 +35,88 @@ def get_rep_error(pt1,d1,pt2,d2,K1,K2,pose_1_2):
     rep_err = (rep_err_1+rep_err_2)/2
     return rep_err
 
-def depth_sac(corrs, d_1, d_2, K_1, K_2, max_iter = 500000, epi_thold = 0.3, rep_thold=20, d_1_var=None, d_2_var=None,gt_R=None,gt_t=None,img1=None,img2=None):
-    np.random.seed(0)
-    min_sample = 8
-    num_sample = corrs.shape[0]
-    idx = np.arange(num_sample)
-    max_inlier = 0
-    valid_counter = 0
-    update_counter = 0
-    best_rep_err =100000
-    best_pose = np.eye(4)
+def depth_sac(corrs, d_1, d_2, d_1_valid, d_2_valid, K_1, K_2, max_iter = 500000, epi_thold = 0.5, rep_thold=10):
     best_E = None
     best_mask = None
+    min_sac_sample = 8
+    min_dep_sample = 4
+    idx = np.arange(corrs.shape[0])
+    max_inlier = 0
+    d_valid = np.logical_and(d_1_valid, d_2_valid)
     # pt_1_xy_img_homo = np.concatenate((corrs[:,:2],np.ones((corrs.shape[0],1))),axis=-1)
     # pt_2_xy_img_homo = np.concatenate((corrs[:,2:],np.ones((corrs.shape[0],1))),axis=-1)
-    for _iter in range (max_iter):
+    for _iter in range(max_iter):
     # for _ in range (10):
         # sample a subset
-        sub_idx = np.random.choice(idx,min_sample,replace=False)
-        # print(sub_idx)
+        sub_idx = np.random.choice(idx,min_sac_sample,replace=False)
         sub_corrs = corrs[sub_idx]
+        sub_d_1 = d_1[sub_idx]
+        sub_d_2 = d_2[sub_idx]
+        sub_d_valid = np.logical_and(d_1_valid[sub_idx],d_2_valid[sub_idx])
+        num_valid_dep_points = np.sum(sub_d_valid)
+        if num_valid_dep_points<min_dep_sample:
+            continue
 
-        # compute model using 8 points
+        # compute F using 8 points
         F, _ = cv2.findFundamentalMat(sub_corrs[:, :2], sub_corrs[:, 2:], cv2.FM_8POINT)
 
-        if not F is None:
-            
-            # get inlier using epipolar distance and depth local varience
-            dist = get_epi_dist(corrs[:,:2],corrs[:,2:],F)
-            if not d_1_var is None:
-                d_var_mask = np.logical_and(d_1_var<0.05,d_2_var<0.05)
-                epi_mask = dist<epi_thold
-                inlier_mask = np.logical_and(epi_mask,d_var_mask)
-            else:    
-                inlier_mask = dist<epi_thold
-            inlier_corrs = corrs[inlier_mask]
-            sub_depth_1 = d_1[inlier_mask]
-            sub_depth_2 = d_2[inlier_mask]
-            num_inlier = np.sum(inlier_mask)
-            ####### DEBUG check if ransac with only F works #######
-            # if max_inlier < num_inlier:
-            #     update_counter = update_counter + 1
-            #     max_inlier = num_inlier
-            #     print(num_inlier)
-            #     E = K_2.T @ F @ K_1
-            #     # get normalized points (camera coor)
-            #     sub_pt_norm_1 = np.matmul(np.linalg.inv(K_1),np.concatenate([inlier_corrs[:,:2], np.ones((inlier_corrs.shape[0],1))],axis=-1).T).T
-            #     sub_pt_norm_2 = np.matmul(np.linalg.inv(K_2),np.concatenate([inlier_corrs[:,2:], np.ones((inlier_corrs.shape[0],1))],axis=-1).T).T
-            #     # get pose from E
-            #     points, R, t, mask = cv2.recoverPose(E, sub_pt_norm_1[:,:2], sub_pt_norm_2[:,:2])
-            #     best_pose = np.eye(4)
-            #     best_pose[:3,:3] = R
-            #     best_pose[:3,[3]] = t
-            #     best_lin_mapping = None
-            #     best_mask = inlier_mask
-            #     best_F = F
+        if F is None:
+            continue
+        
+        # get E
+        E = K_2.T @ F @ K_1
 
-            #     best_rep_err = None
-            #     best_point_rep_err = None
-            #     best_point_eu_err = None
-            #     print(np.max(dist[inlier_mask]))
-            # continue
-            #######################################################
+        # get pose from E
+        sub_pt_norm_1 = np.matmul(np.linalg.inv(K_1),np.concatenate([sub_corrs[:,:2], np.ones((sub_corrs.shape[0],1))],axis=-1).T).T
+        sub_pt_norm_2 = np.matmul(np.linalg.inv(K_2),np.concatenate([sub_corrs[:,2:], np.ones((sub_corrs.shape[0],1))],axis=-1).T).T
+        points, R, t, mask = cv2.recoverPose(E, sub_pt_norm_1[:,:2], sub_pt_norm_2[:,:2])
+        pose_1_2 = np.identity(4)
+        pose_1_2[:3,:3] = R
+        pose_1_2[:3,[3]] = t
 
-            # # skip if too little inliers
-            if np.sum(inlier_mask)<min_sample+3:
-                continue
-            valid_counter = valid_counter +1
-            # use provied intrinsic get E and normalize points
-            E = K_2.T @ F @ K_1
-            # get normalized points (camera coor)
-            sub_pt_norm_1 = np.matmul(np.linalg.inv(K_1),np.concatenate([inlier_corrs[:,:2], np.ones((inlier_corrs.shape[0],1))],axis=-1).T).T
-            sub_pt_norm_2 = np.matmul(np.linalg.inv(K_2),np.concatenate([inlier_corrs[:,2:], np.ones((inlier_corrs.shape[0],1))],axis=-1).T).T
-            # get pose from E
-            points, R, t, mask = cv2.recoverPose(E, sub_pt_norm_1[:,:2], sub_pt_norm_2[:,:2])
-            pose_1_2 = np.eye(4)
-            pose_1_2[:3,:3] = R
-            pose_1_2[:3,[3]] = t
+        # solve scale using depth and pose
+        sub_pt_norm_1 = sub_pt_norm_1[sub_d_valid]
+        sub_pt_norm_2 = sub_pt_norm_2[sub_d_valid]
+        sub_d_1 = sub_d_1[sub_d_valid]
+        sub_d_2 = sub_d_2[sub_d_valid]
 
-            # solve linear system to get mapping of d1 and d2
-            # R[x1,y1,1].T*(a*d1+b)+t = [x2,y2,1].T*(m*d2+n)
-            # [R[x1,y1,1].T*d_1,R[x1,y1,1].T,-[x_2,y_2,1].T*d_2,[x_2,y_2,1].T]*[a,b,m,n].T = -t
-            # A*[a,b].T = B
-            # [a,b].T = A'B
-            A = np.concatenate(((np.matmul(R,sub_pt_norm_1.T)*sub_depth_1).T.reshape(-1,1),
-                                 np.matmul(R,sub_pt_norm_1.T).T.reshape(-1,1),
-                                 -(sub_pt_norm_2*sub_depth_2[...,np.newaxis]).reshape(-1,1),
-                                 -(sub_pt_norm_2).reshape(-1,1)
-                                 ),axis=-1)
+        # solve linear system to get mapping of d1 and d2
+        # R[x1,y1,1].T*(a*d1+b)+t = [x2,y2,1].T*(m*d2+n)
+        # [R[x1,y1,1].T*d_1,R[x1,y1,1].T,-[x_2,y_2,1].T*d_2,[x_2,y_2,1].T]*[a,b,m,n].T = -t
+        # A*[a,b].T = B
+        # [a,b].T = A'B
+        A = np.concatenate(((np.matmul(R,sub_pt_norm_1.T)*sub_d_1).T.reshape(-1,1),
+                                np.matmul(R,sub_pt_norm_1.T).T.reshape(-1,1),
+                                -(sub_pt_norm_2*sub_d_2[...,np.newaxis]).reshape(-1,1),
+                                -(sub_pt_norm_2).reshape(-1,1)
+                                ),axis=-1)
+        B = -np.repeat(t.T,sub_pt_norm_1.shape[0],axis=0).reshape(-1,1)
+        lin_mapping = np.matmul(np.linalg.pinv(A),B)
 
-            B = -np.repeat(t.T,sub_pt_norm_1.shape[0],axis=0).reshape(-1,1)
-            lin_mapping = np.matmul(np.linalg.pinv(A),B)
+        # calculate epipolar distance
+        epi_err = get_epi_dist(corrs[:,:2],corrs[:,2:],F)
+        epi_mask = epi_err<epi_thold
+        
+        # calculate reprojection error for all points
+        d_1_mapped = d_1*lin_mapping[0,0] + lin_mapping[1,0]
+        d_2_mapped = d_2*lin_mapping[2,0] + lin_mapping[3,0]
+        rep_err = get_rep_error(corrs[:,:2],d_1_mapped[...,np.newaxis],corrs[:,2:],d_2_mapped[...,np.newaxis],K_1,K_2,pose_1_2)
+        rep_mask = np.logical_or(rep_err<rep_thold,d_valid)
 
-            # A = np.concatenate(((np.matmul(R,sub_pt_norm_1.T)*sub_depth_1).T.reshape(-1,1),
-            #                      (np.matmul(R,sub_pt_norm_1.T).T-(sub_pt_norm_2)).reshape(-1,1),
-            #                      -(sub_pt_norm_2*sub_depth_2[...,np.newaxis]).reshape(-1,1)
-            #                      ),axis=-1)
+        inlier_mask = np.logical_and(epi_mask,rep_mask)
+        num_inlier = np.sum(inlier_mask)
 
-            # B = -np.repeat(t.T,sub_pt_norm_1.shape[0],axis=0).reshape(-1,1)
-            # lin_mapping = np.matmul(np.linalg.pinv(A),B)
-
-            # A = np.concatenate((
-            #                      -(sub_pt_norm_2*sub_depth_2[...,np.newaxis]).reshape(-1,1),
-            #                      -(sub_pt_norm_2).reshape(-1,1)
-            #                      ),axis=-1)
-
-            # B = -((np.matmul(R,sub_pt_norm_1.T)*sub_depth_1).T+t.T).reshape(-1,1)
-            # lin_mapping = np.matmul(np.linalg.pinv(A),B)
-
-            # A = np.concatenate(((np.matmul(R,sub_pt_norm_1.T)*sub_depth_1).T.reshape(-1,1),np.matmul(R,sub_pt_norm_1.T).T.reshape(-1,1)),axis=-1)
-            # B = (sub_pt_norm_2*sub_depth_2[...,np.newaxis] - t.T).reshape(-1,1)
-            # lin_mapping = np.matmul(np.linalg.pinv(A),B)
-
-            # # A = np.concatenate(((np.matmul(R,pt_norm_1.T)*depth_1).T.reshape(-1,1),
-            # #                      np.matmul(R,pt_norm_1.T).T.reshape(-1,1),
-            # #                      -(pt_norm_2*depth_2[...,np.newaxis]).reshape(-1,1),
-            # #                      -(pt_norm_2).reshape(-1,1)
-            # #                      ),axis=-1)
-
-            # # B = -np.repeat(t[np.newaxis,...],corrs.shape[0],axis=0).reshape(-1,1)
-            # # lin_mapping = np.matmul(np.linalg.pinv(A),B)
-
-            # calculate reprojection error for all points
-            sub_depth_1_mapped = sub_depth_1*lin_mapping[0,0] + lin_mapping[1,0]
-            sub_depth_2_mapped = sub_depth_2*lin_mapping[2,0] + lin_mapping[3,0]
-
-            # sub_depth_1_mapped = sub_depth_1
-            # sub_depth_2_mapped = sub_depth_2
-            rep_err = get_rep_error(inlier_corrs[:,:2],sub_depth_1_mapped[...,np.newaxis],inlier_corrs[:,2:],sub_depth_2_mapped[...,np.newaxis],K_1,K_2,pose_1_2)
-
-            num_rep_inlier = np.sum(rep_err<rep_thold)
-
-            # print(np.mean(rep_err))
-            # if max_inlier < num_rep_inlier:
-            if np.mean(rep_err)<best_rep_err:
-                update_counter = update_counter + 1
-                max_inlier = num_rep_inlier
-                best_mask = inlier_mask
-                best_pose = pose_1_2
-                best_lin_mapping = lin_mapping
-                best_rep_err = np.mean(rep_err)
-                best_point_rep_err = rep_err
-                best_F = F
-                best_E = E
-
-    return best_E,best_mask
-
+        if max_inlier < num_inlier:
+            max_inlier = num_inlier
+            best_mask = inlier_mask
+            best_E = E
+            # best_R = R
+            # best_t = t
+    # print('num_inlier{}'.format(max_inlier))
+    # import IPython
+    # IPython.embed()
+    # assert(0)
+    return best_E, best_mask
 
 def run_pair(folder_path,pair,sac_type,depth_extention):
     img1 = pair.split('-')[0]

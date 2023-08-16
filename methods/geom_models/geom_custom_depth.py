@@ -40,10 +40,9 @@ def _depth_estimate_E_with_intrinsics(cfg, matches, kps1, kps2, deps1, deps2,
         return _fail()
 
     corrs = np.concatenate([kp1, kp2], axis=-1)
-    E, mask_E = depth_sac(corrs, dep1, dep2, calib1['K'], calib2['K'], 
+    E, mask_E = depth_sac(corrs, dep1, dep2, dep_var1,dep_var2, calib1['K'], calib2['K'], 
                                     geom['max_iter'], geom['threshold'],
-                                    geom['rep_threshold'],
-                                    dep_var1, dep_var2)
+                                    geom['rep_threshold'])
 
     if E is None:
         return _fail()

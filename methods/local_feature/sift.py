@@ -225,6 +225,8 @@ def run(img_path, cfg):
         d = bilinear_interpolation(kp_xy,depth)
         # get cor for each kp
         cor = get_lcoal_varience(kp_xy,depth)
+        cor[d<0] = 10
+        valid_mask= cor<0.05
     result = {}
     result['kp'] = [p[0:2] for p in kp]
     result['scale'] = [p[2] for p in kp]
@@ -232,5 +234,5 @@ def run(img_path, cfg):
     result['score'] = [p[4] for p in kp]
     result['descs'] = desc
     result['dep'] = [_d for _d in d]
-    result['dep_var'] = [_cor for _cor in cor]
+    result['dep_var'] = [_valid_mask for _valid_mask in valid_mask]
     return result
