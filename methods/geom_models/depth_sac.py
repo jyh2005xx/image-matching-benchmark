@@ -63,6 +63,9 @@ def depth_sac(corrs, d_1, d_2, d_1_valid, d_2_valid, K_1, K_2, max_iter = 500000
         if F is None:
             continue
         
+        sub_epi_err = np.mean(get_epi_dist(sub_corrs[:,:2],sub_corrs[:,2:],F))
+        if sub_epi_err>1:
+            continue
         # get E
         E = K_2.T @ F @ K_1
 
@@ -101,7 +104,7 @@ def depth_sac(corrs, d_1, d_2, d_1_valid, d_2_valid, K_1, K_2, max_iter = 500000
         d_1_mapped = d_1*lin_mapping[0,0] + lin_mapping[1,0]
         d_2_mapped = d_2*lin_mapping[2,0] + lin_mapping[3,0]
         rep_err = get_rep_error(corrs[:,:2],d_1_mapped[...,np.newaxis],corrs[:,2:],d_2_mapped[...,np.newaxis],K_1,K_2,pose_1_2)
-        rep_mask = np.logical_or(rep_err<rep_thold,d_valid)
+        rep_mask = np.logical_and(rep_err<rep_thold,d_valid)
 
         inlier_mask = np.logical_and(epi_mask,rep_mask)
         num_inlier = np.sum(inlier_mask)
