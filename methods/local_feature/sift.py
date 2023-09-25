@@ -133,14 +133,20 @@ def run(img_path, cfg):
     elif desc_name.startswith('sift-depth'):
         use_rootsift = False
         use_clahe_desc = False
-        use_upright = False
+        if desc_name.startswith('sift-depth-upright'):
+            use_upright = True
+        else:
+            use_upright = False
         use_upright_minus_minus = False
         use_depth = True
         depth_model = desc_name.split('-')[-1]
     elif desc_name.startswith('rootsift-depth'):
         use_rootsift = True
         use_clahe_desc = False
-        use_upright = False
+        if desc_name.startswith('rootsift-depth-upright'):
+            use_upright = True
+        else:
+            use_upright = False
         use_upright_minus_minus = False
         use_depth = True
         depth_model = desc_name.split('-')[-1]
